@@ -99,6 +99,7 @@ impl Iterator for Dump {
     }
 }
 
+#[derive(Debug)]
 struct Code {
     height: u32,
     is_coinbase: bool,

@@ -43,28 +43,34 @@ impl Decodable for Compressed {
                 // P2PK (compressed)
                 let mut bytes = [0; 32];
                 reader.read_exact(&mut bytes)?;
-                let mut pubkey_bytes = Vec::with_capacity(33);
-                pubkey_bytes.push(size as u8);
-                pubkey_bytes.extend_from_slice(&bytes);
-                let pubkey = PublicKey::from_slice(&pubkey_bytes)
-                    .map_err(|_| Error::ParseFailed("parse public key"))?;
-                Ok(Compressed(ScriptBuf::new_p2pk(&pubkey)))
+
+                let mut script_bytes = Vec::with_capacity(35);
+                script_bytes.push(opcodes::all::OP_PUSHBYTES_33.to_u8());
+                script_bytes.push(size as u8);
+                script_bytes.extend_from_slice(&bytes);
+                script_bytes.push(opcodes::all::OP_CHECKSIG.to_u8());
+
+                Ok(Compressed(ScriptBuf::from(script_bytes)))
             }
             0x04 | 0x05 => {
                 // P2PK (uncompressed)
                 let mut bytes = [0; 32];
                 reader.read_exact(&mut bytes)?;
+
                 let mut compressed_pubkey_bytes = Vec::with_capacity(33);
                 compressed_pubkey_bytes.push((size - 2) as u8);
                 compressed_pubkey_bytes.extend_from_slice(&bytes);
+
                 let compressed_pubkey = PublicKey::from_slice(&compressed_pubkey_bytes)
                     .map_err(|_| Error::ParseFailed("parse public key"))?;
                 let inner_uncompressed = compressed_pubkey.inner.serialize_uncompressed();
-                let uncompressed_pubkey =
-                    bitcoin::secp256k1::PublicKey::from_slice(&inner_uncompressed)
-                        .map_err(|_| Error::ParseFailed("parse uncompressed public key"))?;
-                let pubkey = PublicKey::new_uncompressed(uncompressed_pubkey);
-                Ok(Compressed(ScriptBuf::new_p2pk(&pubkey)))
+
+                let mut script_bytes = Vec::with_capacity(67);
+                script_bytes.push(opcodes::all::OP_PUSHBYTES_65.to_u8());
+                script_bytes.extend_from_slice(&inner_uncompressed);
+                script_bytes.push(opcodes::all::OP_CHECKSIG.to_u8());
+
+                Ok(Compressed(ScriptBuf::from(script_bytes)))
             }
             _ => {
                 size -= NUM_SPECIAL_SCRIPTS;

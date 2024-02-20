@@ -3,6 +3,7 @@ use txoutset::Dump;
 
 #[derive(Debug, Parser)]
 struct Args {
+    /// File containing the results of Bitcoin Core RPC `dumptxoutset`
     file: String,
     /// Compute addresses for each script pubkey
     #[arg(short, long, default_value_t = false)]
@@ -23,6 +24,9 @@ fn main() {
                 if item.script_buf.is_empty() {
                     println!("[{c}]: {:#?}", item);
                     break;
+                }
+                if c % 250_000 == 0 {
+                    println!("[{c}]: {:#?}", item);
                 }
                 c += 1;
             }
