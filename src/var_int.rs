@@ -23,7 +23,13 @@ use bitcoin::consensus::{Decodable, Encodable, ReadExt};
 /// 255:  [0x80 0x7F]  65535: [0x82 0xFE 0x7F]
 /// 2^32:           [0x8E 0xFE 0xFE 0xFF 0x00]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct VarInt(pub u64);
+pub struct VarInt(u64);
+
+impl VarInt {
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
 
 impl Encodable for VarInt {
     fn consensus_encode<W: std::io::Write + ?Sized>(
@@ -77,6 +83,12 @@ impl Decodable for VarInt {
     }
 }
 
+impl From<VarInt> for u64 {
+    fn from(var_int: VarInt) -> Self {
+        var_int.0
+    }
+}
+
 impl From<u64> for VarInt {
     fn from(value: u64) -> Self {
         Self(value)
@@ -85,6 +97,18 @@ impl From<u64> for VarInt {
 
 impl From<u32> for VarInt {
     fn from(value: u32) -> Self {
+        Self(value as u64)
+    }
+}
+
+impl From<u16> for VarInt {
+    fn from(value: u16) -> Self {
+        Self(value as u64)
+    }
+}
+
+impl From<u8> for VarInt {
+    fn from(value: u8) -> Self {
         Self(value as u64)
     }
 }
@@ -115,7 +139,7 @@ mod test {
         for (num, bytes) in cases {
             let var_int = VarInt(num);
             let mut encoded = Vec::new();
-            assert!(var_int.consensus_encode(&mut encoded).is_ok());
+            var_int.consensus_encode(&mut encoded).expect("encode");
             assert_eq!(encoded, bytes, "encode {} -> {:?}", num, bytes);
 
             let mut encoded = bytes.as_slice();

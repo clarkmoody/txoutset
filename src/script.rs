@@ -20,7 +20,7 @@ impl Compressed {
 
 impl Decodable for Compressed {
     fn consensus_decode<R: std::io::Read + ?Sized>(reader: &mut R) -> Result<Self, Error> {
-        let mut size = VarInt::consensus_decode(reader)?.0 as usize;
+        let mut size = u64::from(VarInt::consensus_decode(reader)?) as usize;
 
         match size {
             0x00 => {

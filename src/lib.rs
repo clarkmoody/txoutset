@@ -122,7 +122,7 @@ impl Decodable for Code {
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         let var_int = VarInt::consensus_decode(reader)?;
-        let code = u32::try_from(var_int.0)
+        let code = u32::try_from(u64::from(var_int))
             .map_err(|_| bitcoin::consensus::encode::Error::ParseFailed("invalid cast to u32"))?;
 
         Ok(Code {
@@ -223,7 +223,7 @@ impl CompressedAmount {
 
 impl From<VarInt> for CompressedAmount {
     fn from(var_int: VarInt) -> Self {
-        CompressedAmount(var_int.0)
+        CompressedAmount(u64::from(var_int))
     }
 }
 
@@ -259,28 +259,5 @@ mod test {
         let compressed = CompressedAmount(0x77);
 
         assert_eq!(compressed.decompress(), Amount(13_0000_0000));
-    }
-
-    #[test]
-    fn varint_encoding() {
-        let pairs = vec![
-            (0, vec![0x00]),
-            (1, vec![0x01]),
-            (127, vec![0x7f]),
-            (128, vec![0x80, 0x00]),
-            (255, vec![0x80, 0x7f]),
-            (256, vec![0x81, 0x00]),
-            (16383, vec![0xfe, 0x7f]),
-            (16384, vec![0xff, 0x00]),
-            (16511, vec![0xff, 0x7f]),
-            (65535, vec![0x82, 0xfe, 0x7f]),
-        ];
-
-        for (num, encoding) in pairs {
-            let mut v = Vec::new();
-            let var_int = VarInt(num);
-            var_int.consensus_encode(&mut v).expect("encode");
-            assert_eq!(v, encoding);
-        }
     }
 }
