@@ -4,24 +4,26 @@ use bitcoin::consensus::{Decodable, Encodable, ReadExt};
 ///
 /// Bytes are a MSB base-128 encoding of the number.
 /// The high bit in each byte signifies whether another digit follows. To make
-/// sure the encoding is one-to-one, one is subtracted from all but the last digit.
-/// Thus, the byte sequence a[] with length len, where all but the last byte
-/// has bit 128 set, encodes the number:
+/// sure the encoding is one-to-one, one is subtracted from all but the last
+/// digit. Thus, the byte sequence a[] with length len, where all but the last
+/// byte has bit 128 set, encodes the number:
 ///  (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
 ///
 /// Properties:
 /// * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
 /// * Every integer has exactly one encoding
 /// * Encoding does not depend on size of original integer type
-/// * No redundancy: every (infinite) byte sequence corresponds to a list
-///   of encoded integers.
+/// * No redundancy: every (infinite) byte sequence corresponds to a list of
+///   encoded integers.
 ///
+/// ```text
 /// 0:         [0x00]  256:        [0x81 0x00]
 /// 1:         [0x01]  16383:      [0xFE 0x7F]
 /// 127:       [0x7F]  16384:      [0xFF 0x00]
 /// 128:  [0x80 0x00]  16511:      [0xFF 0x7F]
 /// 255:  [0x80 0x7F]  65535: [0x82 0xFE 0x7F]
 /// 2^32:           [0x8E 0xFE 0xFE 0xFF 0x00]
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VarInt(u64);
 
@@ -50,12 +52,8 @@ impl Encodable for VarInt {
             first = false;
         }
 
-        let len = bytes.len();
-
         let bytes: Vec<u8> = bytes.into_iter().rev().collect();
-        writer.write(bytes.as_slice())?;
-
-        Ok(len)
+        writer.write(bytes.as_slice())
     }
 }
 

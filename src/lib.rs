@@ -1,28 +1,54 @@
+//! UTXO set dump parser
+//!
+//! ```skip
+//! use txoutset::Dump;
+//! let dump = Dump::new("utxo.bin", true).unwrap();
+//! for item in dump {
+//!     println!("{}: {}", item.out_point, u64::from(item.amount));
+//! }
+//! ```
+
 use std::io::{ErrorKind, Seek};
 use std::path::PathBuf;
 
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::{Address, BlockHash, OutPoint, ScriptBuf};
 
+pub mod amount;
 pub mod script;
 pub mod var_int;
+pub use amount::Amount;
+pub use script::Script;
 pub use var_int::VarInt;
 
+/// An unspent transaction output entry
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TxOut {
+    /// The address form of the script public key
     pub address: Option<Address>,
+    /// Value of the output, satoshis
     pub amount: Amount,
+    /// Block height where the transaction was confirmed
     pub height: u32,
+    /// Whether the output is in the coinbase transaction of the block
     pub is_coinbase: bool,
+    /// The specific transaction output
     pub out_point: OutPoint,
-    pub script_buf: ScriptBuf,
+    /// The script public key
+    pub script_pubkey: ScriptBuf,
 }
 
+/// The UTXO set dump parser helper struct
+///
+/// The struct holds a file reference to the export and implements `Iterator`
+/// to produce [`TxOut`] entries.
 pub struct Dump {
+    /// The block hash of the chain tip when the UTXO set was exported
     pub block_hash: BlockHash,
-    pub coins_count: u64,
     compute_addresses: bool,
     file: std::fs::File,
+    /// Number of entries in the dump file
+    pub utxo_set_size: u64,
 }
 
 impl Dump {
@@ -36,11 +62,11 @@ impl Dump {
         }
         let mut file = std::fs::File::open(path)?;
         let block_hash = BlockHash::consensus_decode(&mut file)?;
-        let coins_count = u64::consensus_decode(&mut file)?;
+        let utxo_set_size = u64::consensus_decode(&mut file)?;
 
         Ok(Self {
             block_hash,
-            coins_count,
+            utxo_set_size,
             compute_addresses,
             file,
         })
@@ -74,7 +100,7 @@ impl Iterator for Dump {
                 e
             })
             .ok()?;
-        let script_buf = script::Compressed::consensus_decode(&mut self.file)
+        let script_buf = Script::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
                 eprintln!("[{}->{}] Script decode: {:?}", item_start_pos, pos, e);
@@ -94,7 +120,7 @@ impl Iterator for Dump {
             height: code.height,
             is_coinbase: code.is_coinbase,
             out_point,
-            script_buf,
+            script_pubkey: script_buf,
         })
     }
 }
@@ -129,135 +155,5 @@ impl Decodable for Code {
             height: code >> 1,
             is_coinbase: (code & 0x01) == 1,
         })
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Amount(pub u64);
-
-impl Amount {
-    pub fn compress(&self) -> CompressedAmount {
-        let mut n = self.0;
-
-        if n == 0 {
-            return CompressedAmount(0);
-        }
-
-        let mut e = 0;
-        while ((n % 10) == 0) && e < 9 {
-            n /= 10;
-            e += 1;
-        }
-
-        let x = if e < 9 {
-            let d = n % 10;
-            assert!(d >= 1 && d <= 9);
-            n /= 10;
-            1 + (n * 9 + d - 1) * 10 + e
-        } else {
-            1 + (n - 1) * 10 + 9
-        };
-
-        CompressedAmount(x)
-    }
-}
-
-impl Encodable for Amount {
-    fn consensus_encode<W: std::io::Write + ?Sized>(
-        &self,
-        writer: &mut W,
-    ) -> Result<usize, std::io::Error> {
-        let compressed = self.compress();
-        let var_int = VarInt::from(compressed);
-
-        var_int.consensus_encode(writer)
-    }
-}
-
-impl Decodable for Amount {
-    fn consensus_decode<R: std::io::Read + ?Sized>(
-        reader: &mut R,
-    ) -> Result<Self, bitcoin::consensus::encode::Error> {
-        let var_int = VarInt::consensus_decode(reader)?;
-        let compressed = CompressedAmount::from(var_int);
-
-        Ok(compressed.decompress())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CompressedAmount(u64);
-
-impl CompressedAmount {
-    pub fn decompress(&self) -> Amount {
-        let mut x = self.0;
-
-        if x == 0 {
-            return Amount(0);
-        }
-
-        x -= 1;
-
-        // x = 10*(9*n + d - 1) + e
-        let mut e = x % 10;
-        x /= 10;
-
-        let mut n = if e < 9 {
-            // x = 9*n + d - 1
-            let d = (x % 9) + 1;
-            x /= 9;
-            // x = n
-            x * 10 + d
-        } else {
-            x + 1
-        };
-
-        while e > 0 {
-            n *= 10;
-            e -= 1;
-        }
-
-        Amount(n)
-    }
-}
-
-impl From<VarInt> for CompressedAmount {
-    fn from(var_int: VarInt) -> Self {
-        CompressedAmount(u64::from(var_int))
-    }
-}
-
-impl From<CompressedAmount> for VarInt {
-    fn from(compressed: CompressedAmount) -> Self {
-        VarInt::from(compressed.0)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn amount_compression() {
-        let amounts = vec![
-            Amount(0),
-            Amount(1),
-            Amount(1_2345_6789),
-            Amount(6_2500_0000),
-            Amount(12_5000_0000),
-            Amount(50_0000_0000),
-            Amount(20_999_999_9769_0000),
-        ];
-
-        for amount in amounts {
-            assert_eq!(amount, amount.compress().decompress());
-        }
-    }
-
-    #[test]
-    fn decompress_amount() {
-        let compressed = CompressedAmount(0x77);
-
-        assert_eq!(compressed.decompress(), Amount(13_0000_0000));
     }
 }

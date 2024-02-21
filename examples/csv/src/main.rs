@@ -32,18 +32,18 @@ fn main() {
             if args.check {
                 return println!(
                     "Dump opened.\n Block Hash: {}\n UTXO Set Size: {}",
-                    dump.block_hash, dump.coins_count
+                    dump.block_hash, dump.utxo_set_size
                 );
             }
-            for item in dump.into_iter() {
+            for item in dump {
                 let address = item.address.map_or(String::new(), |a| format!(",{}", a));
                 println!(
                     "{},{},{},{},{}{}",
                     item.out_point,
                     u8::from(item.is_coinbase),
                     item.height,
-                    item.amount.0,
-                    hex::encode(item.script_buf.as_bytes()),
+                    u64::from(item.amount),
+                    hex::encode(item.script_pubkey.as_bytes()),
                     address
                 );
             }
