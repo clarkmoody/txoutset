@@ -8,7 +8,7 @@
 //! }
 //! ```
 
-use std::io::{ErrorKind, Seek};
+use std::io::{ErrorKind, Seek, Write};
 use std::path::PathBuf;
 
 use bitcoin::consensus::{Decodable, Encodable};
@@ -82,28 +82,52 @@ impl Iterator for Dump {
         let out_point = OutPoint::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                eprintln!("[{}->{}] OutPoint decode: {:?}", item_start_pos, pos, e);
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "[{}->{}] OutPoint decode: {:?}",
+                    item_start_pos,
+                    pos,
+                    e
+                );
                 e
             })
             .ok()?;
         let code = Code::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                eprintln!("[{}->{}] Code decode: {:?}", item_start_pos, pos, e);
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "[{}->{}] Code decode: {:?}",
+                    item_start_pos,
+                    pos,
+                    e
+                );
                 e
             })
             .ok()?;
         let amount = Amount::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                eprintln!("[{}->{}] Amount decode: {:?}", item_start_pos, pos, e);
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "[{}->{}] Amount decode: {:?}",
+                    item_start_pos,
+                    pos,
+                    e
+                );
                 e
             })
             .ok()?;
         let script_buf = Script::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                eprintln!("[{}->{}] Script decode: {:?}", item_start_pos, pos, e);
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "[{}->{}] Script decode: {:?}",
+                    item_start_pos,
+                    pos,
+                    e
+                );
                 e
             })
             .ok()?
