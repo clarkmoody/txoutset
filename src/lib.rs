@@ -133,7 +133,7 @@ impl Decodable for Code {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Amount(u64);
+pub struct Amount(pub u64);
 
 impl Amount {
     pub fn compress(&self) -> CompressedAmount {
