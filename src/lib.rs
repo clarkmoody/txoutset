@@ -1,18 +1,20 @@
 //! UTXO set dump parser
 //!
 //! ```skip
-//! use txoutset::Dump;
-//! let dump = Dump::new("utxo.bin", true).unwrap();
+//! use txoutset::{ComputeAddresses, Dump};
+//! let dump = Dump::new("utxo.bin", ComputeAddresses::No).unwrap();
 //! for item in dump {
 //!     println!("{}: {}", item.out_point, u64::from(item.amount));
 //! }
 //! ```
 
-use std::io::{ErrorKind, Seek, Write};
-use std::path::PathBuf;
+use std::io::{ErrorKind, Seek};
+use std::path::Path;
 
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::{Address, BlockHash, OutPoint, ScriptBuf};
+
+pub use bitcoin::Network;
 
 pub mod amount;
 pub mod script;
@@ -45,18 +47,29 @@ pub struct TxOut {
 pub struct Dump {
     /// The block hash of the chain tip when the UTXO set was exported
     pub block_hash: BlockHash,
-    compute_addresses: bool,
+    compute_addresses: ComputeAddresses,
     file: std::fs::File,
     /// Number of entries in the dump file
     pub utxo_set_size: u64,
 }
 
+/// Whether to compute addresses while processing.
+#[derive(Debug, Default)]
+pub enum ComputeAddresses {
+    /// Do not compute addresses.
+    #[default]
+    No,
+    /// Compute addresses and assume a particular network.
+    Yes(bitcoin::Network),
+}
+
 impl Dump {
+    /// Opens a UTXO set dump.
     pub fn new(
-        path: impl Into<PathBuf>,
-        compute_addresses: bool,
+        path: impl AsRef<Path>,
+        compute_addresses: ComputeAddresses,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
-        let path = path.into();
+        let path = path.as_ref();
         if !path.exists() {
             return Err(std::io::Error::from(ErrorKind::NotFound).into());
         }
@@ -82,61 +95,39 @@ impl Iterator for Dump {
         let out_point = OutPoint::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "[{}->{}] OutPoint decode: {:?}",
-                    item_start_pos,
-                    pos,
-                    e
-                );
+                log::error!("[{}->{}] OutPoint decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?;
         let code = Code::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "[{}->{}] Code decode: {:?}",
-                    item_start_pos,
-                    pos,
-                    e
-                );
+                log::error!("[{}->{}] Code decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?;
         let amount = Amount::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "[{}->{}] Amount decode: {:?}",
-                    item_start_pos,
-                    pos,
-                    e
-                );
+                log::error!("[{}->{}] Amount decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?;
         let script_buf = Script::consensus_decode(&mut self.file)
             .map_err(|e| {
                 let pos = self.file.stream_position().unwrap_or_default();
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "[{}->{}] Script decode: {:?}",
-                    item_start_pos,
-                    pos,
-                    e
-                );
+                log::error!("[{}->{}] Script decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?
             .into_inner();
 
-        let address = self
-            .compute_addresses
-            .then(|| Address::from_script(script_buf.as_script(), bitcoin::Network::Bitcoin).ok())
-            .flatten();
+        let address = match &self.compute_addresses {
+            ComputeAddresses::No => None,
+            ComputeAddresses::Yes(network) => {
+                Address::from_script(script_buf.as_script(), *network).ok()
+            }
+        };
 
         Some(TxOut {
             address,

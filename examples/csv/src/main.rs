@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use clap::Parser;
-use txoutset::Dump;
+use txoutset::{ComputeAddresses, Dump};
 
 /// Parse the UTXO set dump file and output each entry as CSV
 ///
@@ -31,7 +31,10 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut stdout = std::io::stdout();
 
-    match Dump::new(&args.file, args.addresses) {
+    match Dump::new(
+        &args.file,
+        ComputeAddresses::Yes(txoutset::Network::Bitcoin),
+    ) {
         Ok(dump) => {
             if args.check {
                 return writeln!(
