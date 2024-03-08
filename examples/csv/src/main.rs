@@ -31,10 +31,13 @@ fn main() -> Result<(), std::io::Error> {
 
     let mut stdout = std::io::stdout();
 
-    match Dump::new(
-        &args.file,
-        ComputeAddresses::Yes(txoutset::Network::Bitcoin),
-    ) {
+    let compute_addresses = if args.addresses {
+        ComputeAddresses::Yes(txoutset::Network::Bitcoin)
+    } else {
+        ComputeAddresses::No
+    };
+
+    match Dump::new(&args.file, compute_addresses) {
         Ok(dump) => {
             if args.check {
                 return writeln!(
@@ -43,14 +46,22 @@ fn main() -> Result<(), std::io::Error> {
                     dump.block_hash, dump.utxo_set_size
                 );
             }
+
+            let mut addr_str = String::new();
             for item in dump {
-                let address = match (args.addresses, item.address) {
+                addr_str.clear();
+                use std::fmt::Write;
+
+                match (args.addresses, item.address) {
                     (true, Some(address)) => {
-                        format!(",{}", address)
+                        let _ = write!(addr_str, ",{}", address);
                     }
-                    (true, None) => ",".to_string(),
-                    (false, _) => String::new(),
-                };
+                    (true, None) => {
+                        let _ = write!(addr_str, ",");
+                    }
+                    (false, _) => {}
+                }
+
                 let r = writeln!(
                     stdout,
                     "{},{},{},{},{}{}",
@@ -59,7 +70,7 @@ fn main() -> Result<(), std::io::Error> {
                     item.height,
                     u64::from(item.amount),
                     hex::encode(item.script_pubkey.as_bytes()),
-                    address
+                    addr_str
                 );
                 if let Err(e) = r {
                     if matches!(e.kind(), std::io::ErrorKind::BrokenPipe) {
