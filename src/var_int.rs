@@ -34,10 +34,10 @@ impl VarInt {
 }
 
 impl Encodable for VarInt {
-    fn consensus_encode<W: std::io::Write + ?Sized>(
+    fn consensus_encode<W: bitcoin::io::Write + ?Sized>(
         &self,
         writer: &mut W,
-    ) -> Result<usize, std::io::Error> {
+    ) -> Result<usize, bitcoin::io::Error> {
         let mut num = self.0;
         let mut bytes = Vec::with_capacity((std::mem::size_of::<u64>() * 8 + 6) / 7);
 
@@ -58,7 +58,7 @@ impl Encodable for VarInt {
 }
 
 impl Decodable for VarInt {
-    fn consensus_decode<R: std::io::Read + ?Sized>(
+    fn consensus_decode<R: bitcoin::io::BufRead + ?Sized>(
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         let mut n: u64 = 0;

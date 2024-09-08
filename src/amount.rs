@@ -38,10 +38,10 @@ impl Amount {
 }
 
 impl Encodable for Amount {
-    fn consensus_encode<W: std::io::Write + ?Sized>(
+    fn consensus_encode<W: bitcoin::io::Write + ?Sized>(
         &self,
         writer: &mut W,
-    ) -> Result<usize, std::io::Error> {
+    ) -> Result<usize, bitcoin::io::Error> {
         let compressed = self.compress();
         let var_int = VarInt::from(compressed);
 
@@ -50,7 +50,7 @@ impl Encodable for Amount {
 }
 
 impl Decodable for Amount {
-    fn consensus_decode<R: std::io::Read + ?Sized>(
+    fn consensus_decode<R: bitcoin::io::BufRead + ?Sized>(
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         let var_int = VarInt::consensus_decode(reader)?;

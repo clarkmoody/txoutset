@@ -8,7 +8,7 @@
 //! }
 //! ```
 
-use std::io::{ErrorKind, Seek};
+use std::io::Seek;
 use std::path::Path;
 
 use bitcoin::consensus::{Decodable, Encodable};
@@ -48,7 +48,7 @@ pub struct Dump {
     /// The block hash of the chain tip when the UTXO set was exported
     pub block_hash: BlockHash,
     compute_addresses: ComputeAddresses,
-    file: std::fs::File,
+    file_buf: std::io::BufReader<std::fs::File>,
     /// Number of entries in the dump file
     pub utxo_set_size: u64,
 }
@@ -71,17 +71,21 @@ impl Dump {
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         let path = path.as_ref();
         if !path.exists() {
-            return Err(std::io::Error::from(ErrorKind::NotFound).into());
+            return Err(bitcoin::consensus::encode::Error::Io(
+                bitcoin::io::ErrorKind::NotFound.into(),
+            ));
         }
-        let mut file = std::fs::File::open(path)?;
-        let block_hash = BlockHash::consensus_decode(&mut file)?;
-        let utxo_set_size = u64::consensus_decode(&mut file)?;
+        let file = std::fs::File::open(path)
+            .map_err(|err| bitcoin::consensus::encode::Error::Io(err.into()))?;
+        let mut file_buf = std::io::BufReader::new(file);
+        let block_hash = BlockHash::consensus_decode(&mut file_buf)?;
+        let utxo_set_size = u64::consensus_decode(&mut file_buf)?;
 
         Ok(Self {
             block_hash,
             utxo_set_size,
             compute_addresses,
-            file,
+            file_buf,
         })
     }
 }
@@ -90,32 +94,32 @@ impl Iterator for Dump {
     type Item = TxOut;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let item_start_pos = self.file.stream_position().unwrap_or_default();
+        let item_start_pos = self.file_buf.stream_position().unwrap_or_default();
 
-        let out_point = OutPoint::consensus_decode(&mut self.file)
+        let out_point = OutPoint::consensus_decode(&mut self.file_buf)
             .map_err(|e| {
-                let pos = self.file.stream_position().unwrap_or_default();
+                let pos = self.file_buf.stream_position().unwrap_or_default();
                 log::error!("[{}->{}] OutPoint decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?;
-        let code = Code::consensus_decode(&mut self.file)
+        let code = Code::consensus_decode(&mut self.file_buf)
             .map_err(|e| {
-                let pos = self.file.stream_position().unwrap_or_default();
+                let pos = self.file_buf.stream_position().unwrap_or_default();
                 log::error!("[{}->{}] Code decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?;
-        let amount = Amount::consensus_decode(&mut self.file)
+        let amount = Amount::consensus_decode(&mut self.file_buf)
             .map_err(|e| {
-                let pos = self.file.stream_position().unwrap_or_default();
+                let pos = self.file_buf.stream_position().unwrap_or_default();
                 log::error!("[{}->{}] Amount decode: {:?}", item_start_pos, pos, e);
                 e
             })
             .ok()?;
-        let script_buf = Script::consensus_decode(&mut self.file)
+        let script_buf = Script::consensus_decode(&mut self.file_buf)
             .map_err(|e| {
-                let pos = self.file.stream_position().unwrap_or_default();
+                let pos = self.file_buf.stream_position().unwrap_or_default();
                 log::error!("[{}->{}] Script decode: {:?}", item_start_pos, pos, e);
                 e
             })
@@ -147,10 +151,10 @@ struct Code {
 }
 
 impl Encodable for Code {
-    fn consensus_encode<W: std::io::Write + ?Sized>(
+    fn consensus_encode<W: bitcoin::io::Write + ?Sized>(
         &self,
         writer: &mut W,
-    ) -> Result<usize, std::io::Error> {
+    ) -> Result<usize, bitcoin::io::Error> {
         let code = self.height * 2 + u32::from(self.is_coinbase);
         let var_int = VarInt::from(code);
 
@@ -159,7 +163,7 @@ impl Encodable for Code {
 }
 
 impl Decodable for Code {
-    fn consensus_decode<R: std::io::Read + ?Sized>(
+    fn consensus_decode<R: bitcoin::io::BufRead + ?Sized>(
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         let var_int = VarInt::consensus_decode(reader)?;
