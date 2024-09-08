@@ -20,6 +20,12 @@ impl Script {
     }
 }
 
+impl From<ScriptBuf> for Script {
+    fn from(script_buf: ScriptBuf) -> Self {
+        Self(script_buf)
+    }
+}
+
 impl Decodable for Script {
     fn consensus_decode<R: bitcoin::io::BufRead + ?Sized>(reader: &mut R) -> Result<Self, Error> {
         let mut size = u64::from(VarInt::consensus_decode(reader)?) as usize;

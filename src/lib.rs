@@ -144,10 +144,13 @@ impl Iterator for Dump {
     }
 }
 
+/// A helper struct that encodes the block height and coinbase status into a compact format.
 #[derive(Debug)]
-struct Code {
-    height: u32,
-    is_coinbase: bool,
+pub struct Code {
+    /// Block height at which the UTXO was confirmed.
+    pub height: u32,
+    /// Indicates if the UTXO belongs to a coinbase transaction.
+    pub is_coinbase: bool,
 }
 
 impl Encodable for Code {
