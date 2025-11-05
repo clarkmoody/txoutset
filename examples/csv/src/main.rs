@@ -24,6 +24,9 @@ struct Args {
     /// Check that the file exists and print simple metadata about the snapshot
     #[arg(short, long, default_value_t = false)]
     check: bool,
+    /// Whether this is a testnet (testnet3, testnet4, signet)
+    #[arg(short, long, default_value_t = false)]
+    testnet: bool,
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -32,7 +35,11 @@ fn main() -> Result<(), std::io::Error> {
     let mut stdout = std::io::stdout();
 
     let compute_addresses = if args.addresses {
-        ComputeAddresses::Yes(txoutset::Network::Bitcoin)
+        if args.testnet {
+            ComputeAddresses::Yes(txoutset::Network::Testnet)
+        } else {
+            ComputeAddresses::Yes(txoutset::Network::Bitcoin)
+        }
     } else {
         ComputeAddresses::No
     };
