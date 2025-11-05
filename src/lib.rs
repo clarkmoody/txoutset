@@ -12,9 +12,8 @@ use std::io::{ErrorKind, Seek};
 use std::path::Path;
 
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::{Address, BlockHash, OutPoint, ScriptBuf};
-
 pub use bitcoin::Network;
+use bitcoin::{Address, BlockHash, OutPoint, ScriptBuf};
 
 pub mod amount;
 pub mod script;
