@@ -111,9 +111,6 @@ impl From<u8> for VarInt {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Error {}
-
 #[cfg(test)]
 mod test {
     use super::*;
