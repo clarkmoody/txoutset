@@ -189,3 +189,42 @@ impl Decodable for Code {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::{ComputeAddresses, Dump, Network, TxOut};
+    use std::io::Cursor;
+
+    const DUMP_27_0: &[u8] = include_bytes!("../test/dump-27_0.dat");
+    const DUMP_28_0: &[u8] = include_bytes!("../test/dump-28_0.dat");
+
+    // The 100th tx out in the dump files
+    fn validate_tx_out(tx_out: TxOut) {
+        let address = tx_out.address.map(|a| a.to_string()).expect("address");
+        assert_eq!(&address, "tb1qsajw7zxldhf6lg8rg3ru0d26n633gldzutjcwr");
+        assert_eq!(tx_out.height, 45);
+        assert!(tx_out.is_coinbase);
+    }
+
+    #[test]
+    fn parse_dump_27() {
+        let mut reader = Cursor::new(DUMP_27_0);
+        let dump = Dump::from_reader(&mut reader, ComputeAddresses::Yes(Network::Signet))
+            .expect("Load Dump 27.0");
+
+        let last_tx_out = dump.into_iter().skip(99).next().expect("100th tx out");
+
+        validate_tx_out(last_tx_out);
+    }
+
+    #[test]
+    fn parse_dump_28() {
+        let mut reader = Cursor::new(DUMP_28_0);
+        let dump = Dump::from_reader(&mut reader, ComputeAddresses::Yes(Network::Signet))
+            .expect("Load Dump 28.0");
+
+        let last_tx_out = dump.into_iter().skip(99).next().expect("100th tx out");
+
+        validate_tx_out(last_tx_out);
+    }
+}
