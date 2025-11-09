@@ -17,9 +17,11 @@ pub use bitcoin::Network;
 use bitcoin::{Address, BlockHash, OutPoint, ScriptBuf};
 
 pub mod amount;
+pub mod compact_size;
 pub mod script;
 pub mod var_int;
 pub use amount::Amount;
+pub use compact_size::CompactSize;
 pub use script::Script;
 pub use var_int::VarInt;
 
