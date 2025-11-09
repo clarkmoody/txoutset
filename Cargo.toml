@@ -11,6 +11,7 @@ edition = "2021"
 
 [dependencies]
 bitcoin = "0.31.1"
+thiserror = "2.0.17"
 log = "0.4.21"
 
 [workspace]

@@ -30,15 +30,16 @@ struct Args {
 }
 
 fn main() -> Result<(), std::io::Error> {
+    env_logger::init();
     let args = Args::parse();
 
     let mut stdout = std::io::stdout();
 
     let compute_addresses = if args.addresses {
         if args.testnet {
-            ComputeAddresses::Yes(txoutset::Network::Testnet)
+            ComputeAddresses::Yes(txoutset::Network::Specify(bitcoin::Network::Testnet))
         } else {
-            ComputeAddresses::Yes(txoutset::Network::Bitcoin)
+            ComputeAddresses::Yes(txoutset::Network::Specify(bitcoin::Network::Bitcoin))
         }
     } else {
         ComputeAddresses::No
