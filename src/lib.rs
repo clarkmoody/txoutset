@@ -294,8 +294,9 @@ impl Decodable for Code {
 
 #[cfg(test)]
 mod test {
-    use super::{ComputeAddresses, Dump, Network, TxOut};
     use std::io::Cursor;
+
+    use super::{ComputeAddresses, Dump, Network, TxOut};
 
     const DUMP_27_0: &[u8] = include_bytes!("../test/dump-27_0.dat");
     const DUMP_28_0: &[u8] = include_bytes!("../test/dump-28_0.dat");
