@@ -1,7 +1,7 @@
 use bitcoin::consensus::encode::Error;
 use bitcoin::consensus::Decodable;
 use bitcoin::hashes::Hash;
-use bitcoin::script::{Builder, ScriptBuf};
+use bitcoin::script::ScriptBuf;
 use bitcoin::{opcodes, PubkeyHash, PublicKey, ScriptHash};
 
 const NUM_SPECIAL_SCRIPTS: usize = 6;
@@ -75,16 +75,15 @@ impl Decodable for Script {
                 Ok(Script(ScriptBuf::from(script_bytes)))
             }
             _ => {
-                size -= NUM_SPECIAL_SCRIPTS;
-                let mut bytes = Vec::with_capacity(size);
-                bytes.resize_with(size, || 0);
+                size = size.saturating_sub(NUM_SPECIAL_SCRIPTS);
                 if size > MAX_SCRIPT_SIZE {
-                    reader.read_exact(&mut bytes)?;
-                    let script = Builder::new()
-                        .push_opcode(opcodes::all::OP_RETURN)
-                        .into_script();
-                    Ok(Script(script))
+                    Err(Error::OversizedVectorAllocation {
+                        requested: size,
+                        max: MAX_SCRIPT_SIZE,
+                    })
                 } else {
+                    let mut bytes = Vec::with_capacity(size);
+                    bytes.resize_with(size, || 0);
                     reader.read_exact(&mut bytes)?;
                     Ok(Script(ScriptBuf::from_bytes(bytes)))
                 }

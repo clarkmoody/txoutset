@@ -19,27 +19,31 @@ struct Args {
     /// File containing the results of Bitcoin Core RPC `dumptxoutset`
     file: String,
     /// Compute addresses for each script pubkey
+    ///
+    /// Network automatically detected for >=v28
     #[arg(short, long, default_value_t = false)]
     addresses: bool,
     /// Check that the file exists and print simple metadata about the snapshot
     #[arg(short, long, default_value_t = false)]
     check: bool,
-    /// Whether this is a testnet (testnet3, testnet4, signet)
-    #[arg(short, long, default_value_t = false)]
-    testnet: bool,
+    /// Address format: (bitcoin, testnet, signet, regtest)
+    ///
+    /// Error if mismatch with >=v28 dump network.
+    #[arg(short, long)]
+    network: Option<bitcoin::Network>,
 }
 
 fn main() -> Result<(), std::io::Error> {
+    env_logger::init();
     let args = Args::parse();
 
     let mut stdout = std::io::stdout();
 
     let compute_addresses = if args.addresses {
-        if args.testnet {
-            ComputeAddresses::Yes(txoutset::Network::Testnet)
-        } else {
-            ComputeAddresses::Yes(txoutset::Network::Bitcoin)
-        }
+        ComputeAddresses::Yes(
+            args.network
+                .map_or(txoutset::Network::Detect, txoutset::Network::Specify),
+        )
     } else {
         ComputeAddresses::No
     };
