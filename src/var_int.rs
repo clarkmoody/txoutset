@@ -39,7 +39,7 @@ impl Encodable for VarInt {
         writer: &mut W,
     ) -> Result<usize, std::io::Error> {
         let mut num = self.0;
-        let mut bytes = Vec::with_capacity((std::mem::size_of::<u64>() * 8 + 6) / 7);
+        let mut bytes = Vec::with_capacity((std::mem::size_of::<u64>() * 8).div_ceil(7));
 
         let mut first = true;
         loop {

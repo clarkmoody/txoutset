@@ -27,15 +27,15 @@ impl Encodable for CompactSize {
             writer.write(&[n])
         } else if self.0 <= u16::MAX as u64 {
             let n = self.0 as u16;
-            writer.write(&[253])?;
-            writer.write(&n.to_le_bytes())
+            let written = writer.write(&[253])?;
+            writer.write(&n.to_le_bytes()).map(|n| n + written)
         } else if self.0 <= u32::MAX as u64 {
             let n = self.0 as u32;
-            writer.write(&[254])?;
-            writer.write(&n.to_le_bytes())
+            let written = writer.write(&[254])?;
+            writer.write(&n.to_le_bytes()).map(|n| n + written)
         } else {
-            writer.write(&[255])?;
-            writer.write(&self.0.to_le_bytes())
+            let written = writer.write(&[255])?;
+            writer.write(&self.0.to_le_bytes()).map(|n| n + written)
         }
     }
 }

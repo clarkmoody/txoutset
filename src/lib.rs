@@ -132,11 +132,8 @@ where
         let mut possible_magic = [0_u8; 5];
         reader.read_exact(&mut possible_magic)?;
 
-        let mut state = State::NeedTxid;
-        let address_network;
-
         // Snapshot from Core 28.0 or later starts with magic bytes
-        if possible_magic == SNAPSHOT_MAGIC {
+        let (state, address_network) = if possible_magic == SNAPSHOT_MAGIC {
             let version = u16::consensus_decode(&mut reader)?;
             if version != 2 {
                 return Err(Error::UnknownVersion(version));
@@ -145,7 +142,8 @@ where
             let magic = Magic::consensus_decode(&mut reader)?;
             let network = bitcoin::Network::try_from(magic)?;
 
-            address_network = match compute_addresses {
+            let state = State::NeedTxid;
+            let address_network = match compute_addresses {
                 ComputeAddresses::No => None,
                 ComputeAddresses::Yes(Network::Detect) => Some(network),
                 ComputeAddresses::Yes(Network::Specify(specified)) if specified == network => {
@@ -158,17 +156,21 @@ where
                     });
                 }
             };
+
+            (state, address_network)
         } else {
             reader.rewind()?;
-            state = State::Legacy;
-            address_network = match compute_addresses {
+            let state = State::Legacy;
+            let address_network = match compute_addresses {
                 ComputeAddresses::No => None,
                 ComputeAddresses::Yes(Network::Specify(network)) => Some(network),
                 ComputeAddresses::Yes(Network::Detect) => {
                     return Err(Error::NetworkDetect);
                 }
-            }
-        }
+            };
+
+            (state, address_network)
+        };
 
         let block_hash = BlockHash::consensus_decode(&mut reader)?;
         let utxo_set_size = u64::consensus_decode(&mut reader)?;
@@ -176,7 +178,7 @@ where
         Ok(Self {
             address_network,
             block_hash,
-            reader: reader,
+            reader,
             state,
             utxo_set_size,
         })
