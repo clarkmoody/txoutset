@@ -203,8 +203,6 @@ where
     type Item = TxOut;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let item_start_pos = self.reader.stream_position().unwrap_or_default();
-
         let out_point = match self.state {
             State::HaveTxid {
                 txid,
@@ -224,13 +222,7 @@ where
                 OutPoint::new(txid, vout)
             }
             State::NeedTxid => {
-                let txid = Txid::consensus_decode(&mut self.reader)
-                    .map_err(|e| {
-                        let pos = self.reader.stream_position().unwrap_or_default();
-                        log::error!("[{}->{}] Txid decode: {:?}", item_start_pos, pos, e);
-                        e
-                    })
-                    .ok()?;
+                let txid = Txid::consensus_decode(&mut self.reader).ok()?;
                 let out_points_remaining =
                     u64::from(CompactSize::consensus_decode(&mut self.reader).ok()?)
                         .saturating_sub(1);
@@ -244,37 +236,14 @@ where
 
                 OutPoint::new(txid, vout)
             }
-            State::Legacy => OutPoint::consensus_decode(&mut self.reader)
-                .map_err(|e| {
-                    let pos = self.reader.stream_position().unwrap_or_default();
-                    log::error!("[{}->{}] OutPoint decode: {:?}", item_start_pos, pos, e);
-                    e
-                })
-                .ok()?,
+            State::Legacy => OutPoint::consensus_decode(&mut self.reader).ok()?,
         };
 
-        let code = Code::consensus_decode(&mut self.reader)
-            .map_err(|e| {
-                let pos = self.reader.stream_position().unwrap_or_default();
-                log::error!("[{}->{}] Code decode: {:?}", item_start_pos, pos, e);
-                e
-            })
-            .ok()?;
+        let code = Code::consensus_decode(&mut self.reader).ok()?;
 
-        let amount = Amount::consensus_decode(&mut self.reader)
-            .map_err(|e| {
-                let pos = self.reader.stream_position().unwrap_or_default();
-                log::error!("[{}->{}] Amount decode: {:?}", item_start_pos, pos, e);
-                e
-            })
-            .ok()?;
+        let amount = Amount::consensus_decode(&mut self.reader).ok()?;
 
         let script_buf = Script::consensus_decode(&mut self.reader)
-            .map_err(|e| {
-                let pos = self.reader.stream_position().unwrap_or_default();
-                log::error!("[{}->{}] Script decode: {:?}", item_start_pos, pos, e);
-                e
-            })
             .ok()?
             .into_inner();
 
