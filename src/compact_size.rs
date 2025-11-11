@@ -18,10 +18,10 @@ impl CompactSize {
 }
 
 impl Encodable for CompactSize {
-    fn consensus_encode<W: std::io::Write + ?Sized>(
+    fn consensus_encode<W: bitcoin::io::Write + ?Sized>(
         &self,
         writer: &mut W,
-    ) -> Result<usize, std::io::Error> {
+    ) -> Result<usize, bitcoin::io::Error> {
         if self.0 < 253 {
             let n = self.0 as u8;
             writer.write(&[n])
@@ -41,7 +41,7 @@ impl Encodable for CompactSize {
 }
 
 impl Decodable for CompactSize {
-    fn consensus_decode<R: std::io::Read + ?Sized>(
+    fn consensus_decode<R: bitcoin::io::Read + ?Sized>(
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         let size = reader.read_u8()?;

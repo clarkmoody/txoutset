@@ -9,10 +9,11 @@
 //! ```
 
 use std::fs::File;
-use std::io::{ErrorKind, Read, Seek, Write};
+use std::io::Seek;
 use std::path::Path;
 
 use bitcoin::consensus::{Decodable, Encodable};
+use bitcoin::io::{Read, Write};
 use bitcoin::p2p::Magic;
 use bitcoin::{Address, BlockHash, OutPoint, ScriptBuf, Txid};
 use thiserror::Error;
@@ -51,7 +52,7 @@ pub struct TxOut {
 /// to produce [`TxOut`] entries.
 pub struct Dump<R>
 where
-    R: Read + Seek,
+    R: Read,
 {
     /// Optionally compute addresses using this Network
     address_network: Option<bitcoin::Network>,
@@ -100,6 +101,9 @@ pub enum Network {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum Error {
+    /// Bitcoin I/O Error
+    #[error("I/O: {0}")]
+    BitcoinIo(#[from] bitcoin::io::Error),
     /// Problem decoding a Bitcoin library structure
     #[error("Decode: {0}")]
     ConsensusDecode(#[from] bitcoin::consensus::encode::Error),
@@ -190,7 +194,9 @@ impl Dump<File> {
     pub fn new(path: impl AsRef<Path>, compute_addresses: ComputeAddresses) -> Result<Self, Error> {
         let path = path.as_ref();
         if !path.exists() {
-            return Err(Error::Io(std::io::Error::from(ErrorKind::NotFound)));
+            return Err(Error::Io(std::io::Error::from(
+                std::io::ErrorKind::NotFound,
+            )));
         }
         let file = File::open(path)?;
 
@@ -200,7 +206,7 @@ impl Dump<File> {
 
 impl<R> Iterator for Dump<R>
 where
-    R: Read + Seek,
+    R: Read,
 {
     type Item = TxOut;
 
@@ -271,7 +277,10 @@ struct Code {
 }
 
 impl Encodable for Code {
-    fn consensus_encode<W: Write + ?Sized>(&self, writer: &mut W) -> Result<usize, std::io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(
+        &self,
+        writer: &mut W,
+    ) -> Result<usize, bitcoin::io::Error> {
         let code = self.height * 2 + u32::from(self.is_coinbase);
         let var_int = VarInt::from(code);
 
@@ -313,9 +322,9 @@ mod test {
 
     #[test]
     fn parse_dump_27() {
-        let mut reader = Cursor::new(DUMP_27_0);
+        let reader = Cursor::new(DUMP_27_0);
         let dump = Dump::from_reader(
-            &mut reader,
+            reader,
             ComputeAddresses::Yes(Network::Specify(bitcoin::Network::Signet)),
         )
         .expect("Load Dump 27.0");
@@ -327,8 +336,8 @@ mod test {
 
     #[test]
     fn parse_dump_28() {
-        let mut reader = Cursor::new(DUMP_28_0);
-        let dump = Dump::from_reader(&mut reader, ComputeAddresses::Yes(Network::Detect))
+        let reader = Cursor::new(DUMP_28_0);
+        let dump = Dump::from_reader(reader, ComputeAddresses::Yes(Network::Detect))
             .expect("Load Dump 28.0");
 
         let last_tx_out = dump.into_iter().skip(99).next().expect("100th tx out");
