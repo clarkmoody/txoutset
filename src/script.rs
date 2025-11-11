@@ -21,7 +21,7 @@ impl Script {
 }
 
 impl Decodable for Script {
-    fn consensus_decode<R: std::io::Read + ?Sized>(reader: &mut R) -> Result<Self, Error> {
+    fn consensus_decode<R: bitcoin::io::Read + ?Sized>(reader: &mut R) -> Result<Self, Error> {
         let mut size = u64::from(VarInt::consensus_decode(reader)?) as usize;
 
         match size {

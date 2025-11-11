@@ -20,4 +20,4 @@ members = [
 ]
 
 [workspace.dependencies]
-bitcoin = "0.31.2"
+bitcoin = "0.32.7"
