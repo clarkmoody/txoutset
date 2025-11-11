@@ -9,7 +9,7 @@
 //! ```
 
 use std::fs::File;
-use std::io::Seek;
+use std::io::{BufReader, Seek};
 use std::path::Path;
 
 use bitcoin::consensus::{Decodable, Encodable};
@@ -189,7 +189,7 @@ where
     }
 }
 
-impl Dump<File> {
+impl Dump<BufReader<File>> {
     /// Opens a UTXO set dump from a file path
     pub fn new(path: impl AsRef<Path>, compute_addresses: ComputeAddresses) -> Result<Self, Error> {
         let path = path.as_ref();
@@ -199,8 +199,9 @@ impl Dump<File> {
             )));
         }
         let file = File::open(path)?;
+        let reader = BufReader::new(file);
 
-        Dump::from_reader(file, compute_addresses)
+        Dump::from_reader(reader, compute_addresses)
     }
 }
 
