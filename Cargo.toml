@@ -10,11 +10,14 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
-bitcoin = "0.31.1"
+bitcoin.workspace = true
 thiserror = "2.0.17"
-log = "0.4.21"
+log = "0.4.28"
 
 [workspace]
 members = [
     "examples/*"
 ]
+
+[workspace.dependencies]
+bitcoin = "0.31.2"
