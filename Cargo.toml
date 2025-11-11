@@ -1,6 +1,6 @@
 [package]
 name = "txoutset"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Clark Moody <clark@clarkmoody.com>"]
 repository = "https://github.com/clarkmoody/txoutset"
 description = "Parser for the UTXO set dump produced by Bitcoin Core"
